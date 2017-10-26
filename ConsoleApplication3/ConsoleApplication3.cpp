@@ -3,9 +3,9 @@
 #include <string>
 #include <stdlib.h>
 #include <random>
+#include <conio.h>
 
 using namespace std;
-void processChoice(int choice);
 bool playerTurn = true;
 bool hasHealed = false;
 random_device random;
@@ -91,79 +91,79 @@ public:
 
 };
 
-Creature playerCreature(CREATURE_MAX_HEALTH, "Player");
-Creature enemyCreature(CREATURE_MAX_HEALTH, "Computer");
+void processChoice(char choice, Creature &player, Creature &enemy);
+void doTurn(Creature &player, Creature &enemy);
 
-bool attack(Creature &attacker, Creature &target, int cost, int hitChance, int minDamage, int maxDamage);
-void doTurn();
-
-int menu() {
+int menu(Creature &player, Creature &enemy) {
 	cout << "0. Attack" << endl;
 	cout << "1. Special" << endl;
 	cout << "2. Recharge" << endl;
 	cout << "3. Dodge" << endl;
 	cout << "4. Heal" << endl;
-	int choice;
-	cin >> choice;
-	processChoice(choice);
+	cin.clear();
+	char choice = _getch();
+	processChoice(choice, player, enemy);
 	return choice;
 }
 
 
-void endTurn() {
-	playerCreature.rechargeEnergy();
-	enemyCreature.rechargeEnergy();
-	if (playerTurn) {
-		playerTurn = false;
-		hasHealed = false;
-		cout << endl;
-		cout << ">> Player turn end" << endl;
-		cout << endl;
-	}
-	else {
-		cout << endl;
-		cout << ">> Enemy turn end" << endl;
-		cout << endl;
-		hasHealed = false;
-		playerTurn = true;
-	}
-	if (playerCreature.getHealth() <= 0) {
-		cout << playerCreature.getName() << " has died" << endl;
-	} else if (enemyCreature.getHealth() <= 0) {
-		cout << enemyCreature.getName() << " has died" << endl;
+void endTurn(Creature &player, Creature &enemy) {
+	if (player.getHealth() <= 0) {
+		cout << player.getName() << " has died" << endl;
+		return;
+	} else if (enemy.getHealth() <= 0) {
+		cout << enemy.getName() << " has died" << endl;
+		return;
 	} else {
-		doTurn();
+		cout << "not dead" << endl;
+		player.rechargeEnergy();
+		enemy.rechargeEnergy();
+		if (playerTurn) {
+			playerTurn = false;
+			hasHealed = false;
+			cout << endl;
+			cout << ">> Player turn end" << endl;
+			cout << endl;
+		}
+		else {
+			cout << endl;
+			cout << ">> Enemy turn end" << endl;
+			cout << endl;
+			hasHealed = false;
+			playerTurn = true;
+		}
+		doTurn(player, enemy);
 	}
 }
 
 void makeDecision(Creature &player, Creature &enemy);
 
-void doTurn() {
+void doTurn(Creature &player, Creature &enemy) {
 	if (playerTurn) {
-		if (playerCreature.recharged || playerCreature.dodged) {
-			playerCreature.rechargeRate = CREATURE_DEFAULT_RECHARGE_RATE;
-			playerCreature.hitChanceModifier = CREATURE_DEFAULT_HIT_CHANCE;
-			playerCreature.dodged = false;
-			playerCreature.recharged = false;
+		if (player.recharged || player.dodged) {
+			player.rechargeRate = CREATURE_DEFAULT_RECHARGE_RATE;
+			player.hitChanceModifier = CREATURE_DEFAULT_HIT_CHANCE;
+			player.dodged = false;
+			player.recharged = false;
 		}
 		cout << endl;
 		cout << ">> Player turn start" << endl;
-		cout << "HP: " << playerCreature.getHealth() << "/" << playerCreature.maxHealth << " E:" << playerCreature.getEnergy() << "/" << playerCreature.maxEnergy << endl;
+		cout << "HP: " << player.getHealth() << "/" << player.maxHealth << " E:" << player.getEnergy() << "/" << player.maxEnergy << endl;
 		cout << endl;
-		menu();
-	}
-	else {
-		if (enemyCreature.recharged || enemyCreature.dodged) {
-			enemyCreature.rechargeRate = CREATURE_DEFAULT_RECHARGE_RATE;
-			enemyCreature.hitChanceModifier = CREATURE_DEFAULT_HIT_CHANCE;
-			enemyCreature.recharged = false;
-			enemyCreature.dodged = false;
+		menu(player, enemy);
+	} else {
+		if (enemy.recharged || enemy.dodged) {
+			enemy.rechargeRate = CREATURE_DEFAULT_RECHARGE_RATE;
+			enemy.hitChanceModifier = CREATURE_DEFAULT_HIT_CHANCE;
+			enemy.recharged = false;
+			enemy.dodged = false;
 		}
 		cout << endl;
 		cout << ">> Enemy turn start" << endl;
-		cout << "HP: " << enemyCreature.getHealth() << "/" << enemyCreature.maxHealth << " E:" << enemyCreature.getEnergy() << "/" << enemyCreature.maxEnergy << endl;
+		cout << "HP: " << enemy.getHealth() << "/" << enemy.maxHealth << " E:" << enemy.getEnergy() << "/" << enemy.maxEnergy << endl;
 		cout << endl;
-		makeDecision(playerCreature, enemyCreature);
+		cout << "make decision" << endl;
+		makeDecision(player, enemy);
 	}
 }
 
@@ -171,46 +171,52 @@ void death(Creature &died) {
 	//TODO
 }
 
-void recharge(Creature &self) {
+void recharge(Creature &self, Creature &player, Creature &enemy) {
 	self.rechargeRate *= 4;
 	self.hitChanceModifier += 10;
 	self.recharged = true;
 	cout << self.getName() << " recharged" << endl;
-	endTurn();
+	endTurn(player, enemy);
 }
 
-void dodge(Creature &self) {
+void dodge(Creature &self, Creature &player, Creature &enemy) {
 	self.rechargeRate /= 2;
 	self.hitChanceModifier -= 30;
 	self.dodged = true;
 	cout << self.getName() << " dodged" << endl;
-	endTurn();
+	endTurn(player, enemy);
 }
 
-bool attack(Creature &attacker, Creature &target, int cost, int hitChance, int minDamage, int maxDamage) {
-	if (attacker.getEnergy() >= cost) {
-		attacker.removeEnergy(cost);
-		uniform_int_distribution<> hitChanceRange(0, 100);
-		int hit = hitChanceRange(seed);
-		if (hit >= (100 - hitChance + target.hitChanceModifier)) {
-			uniform_int_distribution<> damageRange(minDamage, maxDamage);
-			int damage = damageRange(seed);
-			target.takeDamage(damage);
-			cout << ">> Hit for " << damage << " damage, " << target.getName() << "'s health is now " << target.getHealth() << "/" << target.maxHealth << endl;
-			if (cost > 0)
-				cout << ">> Cost " << cost << " energy " << attacker.getName() << " has " << attacker.getEnergy() << " energy remaining" << endl;
+
+bool attack(Creature &attacker, Creature &target, Creature &player, Creature &enemy, int cost, int hitChance, int minDamage, int maxDamage) {
+	if (player.getHealth() <= 0 || enemy.getHealth() <= 0) {
+		cout << "This shouldn't happen in the first place" << endl;
+		return false;
+	} else {
+		if (attacker.getEnergy() >= cost) {
+			attacker.removeEnergy(cost);
+			uniform_int_distribution<> hitChanceRange(0, 100);
+			int hit = hitChanceRange(seed);
+			if (hit >= (100 - hitChance + target.hitChanceModifier)) {
+				uniform_int_distribution<> damageRange(minDamage, maxDamage);
+				int damage = damageRange(seed);
+				target.takeDamage(damage);
+				cout << ">> Hit for " << damage << " damage, " << target.getName() << "'s health is now " << target.getHealth() << "/" << target.maxHealth << endl;
+				if (cost > 0)
+					cout << ">> Cost " << cost << " energy " << attacker.getName() << " has " << attacker.getEnergy() << " energy remaining" << endl;
+			}
+			else {
+				cout << ">> Missed!" << endl;
+			}
+			endTurn(player, enemy);
+			return true;
 		}
-		else {
-			cout << ">> Missed!" << endl;
-		}
-		endTurn();
-		return true;
+		cout << "Not enough energy to use attack" << endl;
+		return false;
 	}
-	cout << "Not enough energy to use attack" << endl;
-	return false;
 }
 
-void heal(Creature &creature) {
+void heal(Creature &creature, Creature &player, Creature &enemy) {
 	int amountToHeal = creature.getEnergy() / 2;
 	if (creature.getHealth() + amountToHeal > creature.maxHealth)
 		amountToHeal = creature.maxHealth - creature.getHealth();
@@ -219,38 +225,40 @@ void heal(Creature &creature) {
 	cout << ">> Healed " << creature.getName() << " for " << amountToHeal << " HP" << endl;
 	cout << creature.getName() << "'s HP is now " << creature.getHealth() << endl;
 	hasHealed = true;
-	doTurn();
+	doTurn(player, enemy);
 }
 
-const int ATTACK = 0, SPECIAL = 1, RECHARGE = 2, DODGE = 3, HEAL = 4;
+enum commands { ATTACK = '0', SPECIAL = '1', RECHARGE = '2', DODGE = '3', HEAL = '4' };
 
-void processChoice(int choice) {
+void processChoice(char choice, Creature &player, Creature& enemy) {
 	switch (choice) {
 	case ATTACK: 
-		attack(playerCreature, enemyCreature, ATTACK_COST, ATTACK_HIT_CHANCE, ATTACK_HIT_MIN, ATTACK_HIT_MAX);
+		cout << "attack 1" << endl;
+		attack(player, enemy, player, enemy, ATTACK_COST, ATTACK_HIT_CHANCE, ATTACK_HIT_MIN, ATTACK_HIT_MAX);
 		break;
 	case SPECIAL:
-		if (!attack(playerCreature, enemyCreature, SPECIAL_COST, SPECIAL_HIT_CHANCE, SPECIAL_HIT_MIN, SPECIAL_HIT_MAX)) {
-			menu();
+		cout << "attack 2" << endl;
+		if (!attack(player, enemy, player, enemy, SPECIAL_COST, SPECIAL_HIT_CHANCE, SPECIAL_HIT_MIN, SPECIAL_HIT_MAX)) {
+			menu(player, enemy);
 		}
 		break;
 	case RECHARGE: 
-		recharge(playerCreature);
+		recharge(player, player, enemy);
 		break;
 	case DODGE:
-		dodge(playerCreature);
+		dodge(player, player, enemy);
 		break;
 	case HEAL: 
 		if (!hasHealed)
-			heal(playerCreature);
+			heal(player, player, enemy);
 		else {
 			cout << ">> Already healed this turn" << endl;
-			menu();
+			menu(player, enemy);
 		}
 		break;
 	default:
 		cout << ">> Invalid choice" << endl;
-		menu();
+		menu(player, enemy);
 		break;
 	}
 	cout << endl;
@@ -258,58 +266,61 @@ void processChoice(int choice) {
 
 
 void makeDecision(Creature &player, Creature &enemy) {
+	cout << "this doesn't show at the end" << endl;
 	if (player.dodged) {
 		if (enemy.getHealth() <= 50 && enemy.getHealth() >= 25) {
 			if (!hasHealed)
-				heal(enemy);
+				heal(enemy, player, enemy);
 			if (enemy.getHealth() >= 50) {
-				attack(enemy, player, ATTACK_COST, ATTACK_HIT_CHANCE, ATTACK_HIT_MIN, ATTACK_HIT_MAX);
+				cout << "attack 3" << endl;
+				attack(enemy, player, player, enemy, ATTACK_COST, ATTACK_HIT_CHANCE, ATTACK_HIT_MIN, ATTACK_HIT_MAX);
+			} else {
+				recharge(enemy, player, enemy);
 			}
-			else {
-				recharge(enemy);
-			}
-		}
-		else if (enemy.getHealth() <= 25) {
+		} else if (enemy.getHealth() <= 25) {
 			if (!hasHealed)
-				heal(enemy);
-			dodge(enemy);
+				heal(enemy, player, enemy);
+			dodge(enemy, player, enemy);
 		}
-	}
-	else if (player.recharged) {
+	} else if (player.recharged) {
 		if (enemy.getEnergy() == enemy.maxEnergy) {
-			attack(enemy, player, SPECIAL_COST, SPECIAL_HIT_CHANCE, SPECIAL_HIT_MIN, SPECIAL_HIT_MAX);
+			cout << "attack 4" << endl;
+			attack(enemy, player, player, enemy, SPECIAL_COST, SPECIAL_HIT_CHANCE, SPECIAL_HIT_MIN, SPECIAL_HIT_MAX);
+		} else {
+			cout << "attack 5" << endl;
+			attack(enemy, player, player, enemy, ATTACK_COST, ATTACK_HIT_CHANCE, ATTACK_HIT_MIN, ATTACK_HIT_MAX);
 		}
-		else {
-			attack(enemy, player, ATTACK_COST, ATTACK_HIT_CHANCE, ATTACK_HIT_MIN, ATTACK_HIT_MAX);
-		}
-	}
-	else {
+	} else {
 		if (enemy.getEnergy() == enemy.maxEnergy) {
-			attack(enemy, player, SPECIAL_COST, SPECIAL_HIT_CHANCE, SPECIAL_HIT_MIN, SPECIAL_HIT_MAX);
-		}
-		else if (enemy.getHealth() <= 50 && enemy.getHealth() >= 25) {
+			cout << "attack 6" << endl;
+			attack(enemy, player, player, enemy, SPECIAL_COST, SPECIAL_HIT_CHANCE, SPECIAL_HIT_MIN, SPECIAL_HIT_MAX);
+		} else if (enemy.getHealth() <= 50 && enemy.getHealth() >= 25) {
 			if (!hasHealed)
-				heal(enemy);
-			attack(enemy, player, ATTACK_COST, ATTACK_HIT_CHANCE, ATTACK_HIT_MIN, ATTACK_HIT_MAX);
-		}
-		else if (enemy.getHealth() <= 25) {
+				heal(enemy, player, enemy);
+			cout << "attack 7" << endl;
+			attack(enemy, player, player, enemy, ATTACK_COST, ATTACK_HIT_CHANCE, ATTACK_HIT_MIN, ATTACK_HIT_MAX);
+		} else if (enemy.getHealth() <= 25) {
 			if (!hasHealed)
-				heal(enemy);
-			dodge(enemy);
-		}
-		else {
-			attack(enemy, player, ATTACK_COST, ATTACK_HIT_CHANCE, ATTACK_HIT_MIN, ATTACK_HIT_MAX);
+				heal(enemy, player, enemy);
+			dodge(enemy, player, enemy);
+		} else {
+			cout << "attack 8" << endl;
+			attack(enemy, player, player, enemy, ATTACK_COST, ATTACK_HIT_CHANCE, ATTACK_HIT_MIN, ATTACK_HIT_MAX);
 		}
 	}
-	attack(enemy, player, ATTACK_COST, ATTACK_HIT_CHANCE, ATTACK_HIT_MIN, ATTACK_HIT_MAX);
+	cout << "this does" << endl;
+	cout << "attack 9" << endl;
+	attack(enemy, player, player, enemy, ATTACK_COST, ATTACK_HIT_CHANCE, ATTACK_HIT_MIN, ATTACK_HIT_MAX);
 }
 
 int main() {
+	Creature playerCreature(CREATURE_MAX_HEALTH, "Player");
+	Creature enemyCreature(CREATURE_MAX_HEALTH, "Computer");
 	cout << ">> Player HP = " << playerCreature.getHealth() << endl;
 	cout << ">> Enemy HP = " << enemyCreature.getHealth() << endl;
-	doTurn();
+	doTurn(playerCreature, enemyCreature);
 	cin.ignore();
-	getchar();
+	_getch();
     return 0;
 }
 
