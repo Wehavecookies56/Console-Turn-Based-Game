@@ -142,86 +142,130 @@ void menu(Creature &player, Creature &enemy) {
 }
 
 /*
-	Function to end the turn of either the player or the enemy
+	Function to end the turn of either the player or the enemy and then start the next turn
+	&player: instance of the player
+	&enemy: instance of the enemy
 */
 void endTurn(Creature &player, Creature &enemy) {
+	// Check if the player is dead
 	if (player.getHealth() <= 0) {
 		cout << player.getName() << " has died" << endl;
 		return;
+	// Check if the enemy is dead
 	} else if (enemy.getHealth() <= 0) {
 		cout << enemy.getName() << " has died" << endl;
 		return;
+	// If neither are dead, proceed
 	} else {
-		cout << "not dead" << endl;
+		// Recharge the energy for the turn
 		player.rechargeEnergy();
 		enemy.rechargeEnergy();
+		// Check if it's the player'sturn
 		if (player.isTurn) {
 			cout << endl;
 			cout << ">> Player turn end" << endl;
 			cout << endl;
+			// Switch to enemy turn
 			player.isTurn = false;
 			enemy.isTurn = true;
 			player.healed = false;
-		}
-		else {
+		// Otherwise it's the enemies turn
+		} else {
 			cout << endl;
 			cout << ">> Enemy turn end" << endl;
 			cout << endl; 
+			// Switch to player turn
 			player.isTurn = true;
 			enemy.isTurn = false;
 			enemy.healed = false;
 		}
+		// Start the next turn
 		doTurn(player, enemy);
 	}
 }
 
 void makeDecision(Creature &player, Creature &enemy);
 
+/*
+	Start the turn for either the player or enemy
+	&player: instance of the player
+	&enemy: instance of the enemy
+*/
 void doTurn(Creature &player, Creature &enemy) {
+	// Check if it's the player's turn
 	if (player.isTurn) {
+		// Reset changed stats after recharging or dodging the previous turn
 		if (player.recharged || player.dodged) {
 			player.rechargeRate = CREATURE_DEFAULT_RECHARGE_RATE;
 			player.hitChanceModifier = CREATURE_DEFAULT_HIT_CHANCE;
 			player.dodged = false;
 			player.recharged = false;
 		}
+		// Display the player's current stats
 		cout << endl;
 		cout << ">> Player turn start" << endl;
 		cout << "HP: " << player.getHealth() << "/" << player.maxHealth << " E:" << player.getEnergy() << "/" << player.maxEnergy << endl;
 		cout << endl;
+		// Display the menu
 		menu(player, enemy);
+	// Enemy's turn
 	} else {
+		// Reset changed stats after recharging or dodging the previous turn
 		if (enemy.recharged || enemy.dodged) {
 			enemy.rechargeRate = CREATURE_DEFAULT_RECHARGE_RATE;
 			enemy.hitChanceModifier = CREATURE_DEFAULT_HIT_CHANCE;
 			enemy.recharged = false;
 			enemy.dodged = false;
 		}
+		// Display the enemy's current stats
 		cout << endl;
 		cout << ">> Enemy turn start" << endl;
 		cout << "HP: " << enemy.getHealth() << "/" << enemy.maxHealth << " E:" << enemy.getEnergy() << "/" << enemy.maxEnergy << endl;
 		cout << endl;
-		cout << "make decision" << endl;
+		// Make the enemy's decision
 		makeDecision(player, enemy);
 	}
 }
 
+/*
+	Multiplies the user's recharge rate by 4 until their next turn and makes them 10% more likely to be hit
+	&self: instance of the user
+	&player: instance of the player
+	&enemy: instance of the enemy
+*/
 void recharge(Creature &self, Creature &player, Creature &enemy) {
 	self.rechargeRate *= 4;
 	self.hitChanceModifier += 10;
 	self.recharged = true;
 	cout << self.getName() << " recharged" << endl;
+	// End the turn
 	endTurn(player, enemy);
 }
 
+/*
+	Halves the user's recharge rate and makes them 30% less likely to be hit until their next turn
+	&self: instance of the user
+	&player: instance of the player
+	&enemy: instance of the enemy
+*/
 void dodge(Creature &self, Creature &player, Creature &enemy) {
 	self.rechargeRate /= 2;
 	self.hitChanceModifier -= 30;
 	self.dodged = true;
 	cout << self.getName() << " dodged" << endl;
+	// End the turn
 	endTurn(player, enemy);
 }
 
+struct Attack {
+	int cost{0};
+	int hitChance{0};
+	int minDamage{0};
+	int maxDamage{0};
+};
+
+const Attack standard = { ATTACK_COST, ATTACK_HIT_CHANCE, ATTACK_HIT_MIN, ATTACK_HIT_MAX };
+const Attack special = { SPECIAL_COST, SPECIAL_HIT_CHANCE, SPECIAL_HIT_MIN, SPECIAL_HIT_MAX };
 
 /*
 	Function to have a creature attack another creature
@@ -235,52 +279,67 @@ void dodge(Creature &self, Creature &player, Creature &enemy) {
 	maxDamage: the maximum amount of damage the attack can deal
 	return whether the attack performed and thus should end the turn
 */
-bool attack(Creature &attacker, Creature &target, Creature &player, Creature &enemy, int cost, int hitChance, int minDamage, int maxDamage) {
+bool attack(Creature &attacker, Creature &target, Creature &player, Creature &enemy, Attack attack) {
 	if (player.getHealth() <= 0 || enemy.getHealth() <= 0) {
 		cout << "This shouldn't happen in the first place" << endl;
 		return false;
 	} else {
 		// Check if the attacker has enough energy to use the attack
-		if (attacker.getEnergy() >= cost) {
+		if (attacker.getEnergy() >= attack.cost) {
 			// Remove the energy used by the attack
-			attacker.removeEnergy(cost);
+			attacker.removeEnergy(attack.cost);
 			// Generate random number between 0 and 100 for a percentage hit chance, this makes each number have an equal chance of generating
 			uniform_int_distribution<> hitChanceRange(0, 100);
 			// Generate the random number in the range using the random number generator
 			int hit = hitChanceRange(numberGen);
 			// Check whether the attack hit with the hit chance and the target's hit chance modifier allowing for a greater number of numbers within the 0 to 100 range of being a successful hit
-			if (hit >= (100 - hitChance + target.hitChanceModifier)) {
+			if (hit >= (100 - attack.hitChance + target.hitChanceModifier)) {
 				// Generate a random number within the damage range
-				uniform_int_distribution<> damageRange(minDamage, maxDamage);
+				uniform_int_distribution<> damageRange(attack.minDamage, attack.maxDamage);
 				int damage = damageRange(numberGen);
 				// Damage the target
 				target.takeDamage(damage);
 				cout << ">> Hit for " << damage << " damage, " << target.getName() << "'s health is now " << target.getHealth() << "/" << target.maxHealth << endl;
 				// Display the energy cost of the attack if it has a cost
-				if (cost > 0)
-					cout << ">> Cost " << cost << " energy " << attacker.getName() << " has " << attacker.getEnergy() << " energy remaining" << endl;
+				if (attack.cost > 0)
+					cout << ">> Cost " << attack.cost << " energy " << attacker.getName() << " has " << attacker.getEnergy() << " energy remaining" << endl;
 			}
 			else {
 				cout << ">> Missed!" << endl;
 			}
+			// End the turn
 			endTurn(player, enemy);
 			return true;
 		}
+		// Not enough energy so the attack was not successful and the turn is not ended
 		cout << "Not enough energy to use attack" << endl;
 		return false;
 	}
 }
 
+/*
+	Heals the user using half their energy, does not end the turn, however cannot be used more than once per turn
+	&creature: instance of the user
+	&player: instance of the player
+	&enemy: instance of the enemy
+*/
 void heal(Creature &creature, Creature &player, Creature &enemy) {
+	// Get the amount to heal from half the user's energy
 	int amountToHeal = creature.getEnergy() / 2;
+	// Check if the amount to heal will result in health greater than their max health
 	if (creature.getHealth() + amountToHeal > creature.maxHealth)
+		// Amount to heal reduced to the difference between their max health and curren health so less energy is used to heal
 		amountToHeal = creature.maxHealth - creature.getHealth();
+	// Heal the user
 	creature.heal(amountToHeal);
+	// Remove the energy used
 	creature.removeEnergy(amountToHeal);
 	cout << ">> Healed " << creature.getName() << " for " << amountToHeal << " HP" << endl;
 	cout << creature.getName() << "'s HP is now " << creature.getHealth() << endl;
 	creature.healed = true;
-	doTurn(player, enemy);
+	// Show the menu again so the player can perform another action, only necessary for player as the enemy does not use the menu
+	if (player.isTurn)
+		menu(player, enemy);
 }
 
 enum commands { ATTACK = '0', SPECIAL = '1', RECHARGE = '2', DODGE = '3', HEAL = '4' };
@@ -294,20 +353,21 @@ enum commands { ATTACK = '0', SPECIAL = '1', RECHARGE = '2', DODGE = '3', HEAL =
 void processChoice(char choice, Creature &player, Creature &enemy) {
 	switch (choice) {
 	case ATTACK: 
-		cout << "attack 1" << endl;
-		attack(player, enemy, player, enemy, ATTACK_COST, ATTACK_HIT_CHANCE, ATTACK_HIT_MIN, ATTACK_HIT_MAX);
+		// Use the standard attack
+		attack(player, enemy, player, enemy, standard);
 		break;
 	case SPECIAL:
-		cout << "attack 2" << endl;
 		// Use the special attack, if the player doesn't have enough energy display the menu to ask for input again
-		if (!attack(player, enemy, player, enemy, SPECIAL_COST, SPECIAL_HIT_CHANCE, SPECIAL_HIT_MIN, SPECIAL_HIT_MAX)) {
+		if (!attack(player, enemy, player, enemy, special)) {
 			menu(player, enemy);
 		}
 		break;
 	case RECHARGE: 
+		// Recharge energy
 		recharge(player, player, enemy);
 		break;
 	case DODGE:
+		// Dodge to reduce hit chance of the opponent
 		dodge(player, player, enemy);
 		break;
 	case HEAL: 
@@ -316,6 +376,7 @@ void processChoice(char choice, Creature &player, Creature &enemy) {
 			heal(player, player, enemy);
 		else {
 			cout << ">> Already healed this turn" << endl;
+			// Display the menu again 
 			menu(player, enemy);
 		}
 		break;
@@ -328,53 +389,74 @@ void processChoice(char choice, Creature &player, Creature &enemy) {
 	cout << endl;
 }
 
-
+/*
+	Performs the enemy's action by checking certain conditions
+	&player: instance of the player
+	&enemy: instance of the enemy
+*/
 void makeDecision(Creature &player, Creature &enemy) {
-	cout << "this doesn't show at the end" << endl;
+	// Check if the player has dodged
 	if (player.dodged) {
+		// Check if the enemy has between 25 and 50 health
 		if (enemy.getHealth() <= 50 && enemy.getHealth() >= 25) {
-			if (!enemy.healed)
+			// Check if the enemy has healed
+			if (!enemy.healed) {
+				// Heal the enemy
 				heal(enemy, player, enemy);
-			if (enemy.getHealth() >= 50) {
-				cout << "attack 3" << endl;
-				attack(enemy, player, player, enemy, ATTACK_COST, ATTACK_HIT_CHANCE, ATTACK_HIT_MIN, ATTACK_HIT_MAX);
+				// Check if the enemy has greater than 50 health after healing, attack if so otherwise recharge
+				if (enemy.getHealth() > 50) {
+					attack(enemy, player, player, enemy, standard);
+				} else {
+					recharge(enemy, player, enemy);
+				}
 			} else {
 				recharge(enemy, player, enemy);
 			}
-		} else if (enemy.getHealth() <= 25) {
+		// If the enemy has less than 25 health heal and dodge
+		} else if (enemy.getHealth() < 25) {
 			if (!enemy.healed)
 				heal(enemy, player, enemy);
 			dodge(enemy, player, enemy);
+		// Otherwise recharge
+		} else {
+			recharge(enemy, player, enemy);
 		}
+	// Check if the player recharged their turn
 	} else if (player.recharged) {
+		// Check if the enemy has max energy
 		if (enemy.getEnergy() == enemy.maxEnergy) {
-			cout << "attack 4" << endl;
-			attack(enemy, player, player, enemy, SPECIAL_COST, SPECIAL_HIT_CHANCE, SPECIAL_HIT_MIN, SPECIAL_HIT_MAX);
+			// Use the special attack
+			attack(enemy, player, player, enemy, special);
 		} else {
-			cout << "attack 5" << endl;
-			attack(enemy, player, player, enemy, ATTACK_COST, ATTACK_HIT_CHANCE, ATTACK_HIT_MIN, ATTACK_HIT_MAX);
+			//Otherwise use the standard attack
+			attack(enemy, player, player, enemy, standard);
 		}
+	// Otherwise if the player didn't recharge or dodge
 	} else {
+		// Check if the enemy has max energy
 		if (enemy.getEnergy() == enemy.maxEnergy) {
-			cout << "attack 6" << endl;
-			attack(enemy, player, player, enemy, SPECIAL_COST, SPECIAL_HIT_CHANCE, SPECIAL_HIT_MIN, SPECIAL_HIT_MAX);
+			// Use special attack
+			attack(enemy, player, player, enemy, special);
+		// If the enemy has between 50 and 25 health
 		} else if (enemy.getHealth() <= 50 && enemy.getHealth() >= 25) {
+			// Heal if they haven't
 			if (!enemy.healed)
 				heal(enemy, player, enemy);
-			cout << "attack 7" << endl;
-			attack(enemy, player, player, enemy, ATTACK_COST, ATTACK_HIT_CHANCE, ATTACK_HIT_MIN, ATTACK_HIT_MAX);
-		} else if (enemy.getHealth() <= 25) {
+			// Use the standard attack
+			attack(enemy, player, player, enemy, standard);
+		// Otherwise if the enemy has less than 25 health
+		} else if (enemy.getHealth() < 25) {
+			// Heal if they haven't already, then dodge
 			if (!enemy.healed)
 				heal(enemy, player, enemy);
 			dodge(enemy, player, enemy);
+		// Otherwise recharge
 		} else {
-			cout << "attack 8" << endl;
-			attack(enemy, player, player, enemy, ATTACK_COST, ATTACK_HIT_CHANCE, ATTACK_HIT_MIN, ATTACK_HIT_MAX);
+			recharge(enemy, player, player);
 		}
 	}
-	cout << "this does" << endl;
-	cout << "attack 9" << endl;
-	attack(enemy, player, player, enemy, ATTACK_COST, ATTACK_HIT_CHANCE, ATTACK_HIT_MIN, ATTACK_HIT_MAX);
+	// If no condition is met somehow, use the standard attack so the enemy does at least something every turn
+	attack(enemy, player, player, enemy, standard);
 }
 
 int main() {
