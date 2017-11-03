@@ -135,26 +135,33 @@ public:
 void processChoice(char choice, Creature &player, Creature &enemy, int selected);
 void doTurn(Creature &player, Creature &enemy, short turnID);
 
+enum Colours { BLACK = 0, DARK_BLUE = 1, DARK_GREEN = 2, TURQOUSE = 3, DARK_RED = 4, DARK_PURPLE = 5, GOLD = 6, WHITE = 7, GREY = 8, BLUE = 9, GREEN = 10, CYAN = 11, RED = 12, PURPLE = 13, YELLOW = 14};
+
 void pause(COORD originalPos, Creature &player, Creature &enemy) {
 	HANDLE handle = GetStdHandle(STD_OUTPUT_HANDLE);
 	CONSOLE_SCREEN_BUFFER_INFO info;
 	GetConsoleScreenBufferInfo(handle, &info);
 	clearScreen(handle, info.srWindow.Bottom - 2, info.srWindow.Bottom - 1);
 	SetConsoleCursorPosition(handle, { 0, info.srWindow.Bottom - 2 });
-	cout << player.getName() << ": HP: " << player.getHealth() << "/" << player.maxHealth << " E:" << player.getEnergy() << "/" << player.maxEnergy << endl;
+	SetConsoleTextAttribute(handle, GREEN);
+	cout << " " << player.getName() << ": HP: " << player.getHealth() << "/" << player.maxHealth << " E:" << player.getEnergy() << "/" << player.maxEnergy << endl;
 	string enemyInfo = enemy.getName() + ": HP: " + to_string(enemy.getHealth()) + "/" + to_string(enemy.maxHealth) + " E:" + to_string(enemy.getEnergy()) + "/" + to_string(enemy.maxEnergy);
 	SetConsoleCursorPosition(handle, { info.srWindow.Right - (short) enemyInfo.length(), info.srWindow.Bottom - 2 });
+	SetConsoleTextAttribute(handle, RED);
 	cout << enemyInfo << endl;
 	SetConsoleCursorPosition(handle, { 0, info.srWindow.Bottom - 1 });
+	SetConsoleTextAttribute(handle, WHITE);
 	cout << "[";
+	SetConsoleTextAttribute(handle, YELLOW);
 	cout << "Continue";
+	SetConsoleTextAttribute(handle, WHITE);
 	cout << "]" << endl;
 	SetConsoleCursorPosition(handle, originalPos);
 	_getch();
 	clearScreen(handle, 0);
 }
 
-enum KEYS { UP = 72, RIGHT = 77, DOWN = 80, LEFT = 75, ENTER = 13};
+enum KEYS { UP = 72, RIGHT = 77, DOWN = 80, LEFT = 75, ENTER = 13, ARROWS = 244};
 
 
 /*	
@@ -175,30 +182,34 @@ void menu(Creature &player, Creature &enemy, int selected) {
 
 	clearScreen(handle, info.srWindow.Bottom - 2, info.srWindow.Bottom - 1);
 	SetConsoleCursorPosition(handle, { 0, info.srWindow.Bottom - 2 });
-	cout << player.getName() << ": HP: " << player.getHealth() << "/" << player.maxHealth << " E:" << player.getEnergy() << "/" << player.maxEnergy << endl;
+	SetConsoleTextAttribute(handle, GREEN);
+	cout << " " << player.getName() << ": HP: " << player.getHealth() << "/" << player.maxHealth << " E:" << player.getEnergy() << "/" << player.maxEnergy << endl;
 	string enemyInfo = enemy.getName() + ": HP: " + to_string(enemy.getHealth()) + "/" + to_string(enemy.maxHealth) + " E:" + to_string(enemy.getEnergy()) + "/" + to_string(enemy.maxEnergy);
 	SetConsoleCursorPosition(handle, { info.srWindow.Right - (short)enemyInfo.length(), info.srWindow.Bottom - 2 });
+	SetConsoleTextAttribute(handle, RED);
 	cout << enemyInfo << endl;
 	SetConsoleCursorPosition(handle, { 0, info.srWindow.Bottom - 1 });
 
 	for (int i = 0; i < sizeof(menuItems) / sizeof(menuItems[0]); i++) {
 		if (i == selected) {
-			SetConsoleTextAttribute(handle, 7);
+			SetConsoleTextAttribute(handle, WHITE);
 			cout << "[";
-			SetConsoleTextAttribute(handle, 14);
+			SetConsoleTextAttribute(handle, YELLOW);
 			cout << menuItems[i];
-			SetConsoleTextAttribute(handle, 7);
+			SetConsoleTextAttribute(handle, WHITE);
 			cout << "]";
 		} else {
-			SetConsoleTextAttribute(handle, 8);
+			SetConsoleTextAttribute(handle, GREY);
 			cout << menuItems[i];
-			SetConsoleTextAttribute(handle, 7);
+			SetConsoleTextAttribute(handle, WHITE);
 		}
 	}
 	SetConsoleCursorPosition(handle, cursorPos);
+	cout << ">> Select a command" << endl;
+	SetConsoleCursorPosition(handle, cursorPos);
 	cin.clear();
 	int choice = _getch();
-	if (choice == 224) {
+	if (choice == ARROWS) {
 		choice = _getch();
 	}
 	processChoice(choice, player, enemy, selected);
@@ -216,12 +227,12 @@ void endTurn(Creature &player, Creature &enemy, short turnID) {
 	GetConsoleScreenBufferInfo(handle, &info);
 	// Check if the player is dead
 	if (player.getHealth() <= 0) {
-		cout << player.getName() << " has died" << endl;
+		cout << ">> " << player.getName() << " has died" << endl;
 		pause(info.dwCursorPosition, player, enemy);
 		return;
 	// Check if the enemy is dead
 	} else if (enemy.getHealth() <= 0) {
-		cout << enemy.getName() << " has died" << endl;
+		cout << ">> " << enemy.getName() << " has died" << endl;
 		pause(info.dwCursorPosition, player, enemy);
 		return;
 	// If neither are dead, proceed
@@ -237,7 +248,6 @@ void endTurn(Creature &player, Creature &enemy, short turnID) {
 			cout << endl;
 			// Switch to enemy turn
 			player.healed = false;
-			
 			return;
 		// Otherwise it's the enemies turn
 		} else {
@@ -269,7 +279,7 @@ void doTurn(Creature &player, Creature &enemy, short turnID) {
 	int turnNumber = 1;
 	while (player.getHealth() > 0 && enemy.getHealth() > 0) {
 		clearScreen(handle, 0);
-		cout << "Turn " << turnNumber << endl;
+		cout << ">> Turn " << turnNumber << endl;
 		// Check if it's the player's turn
 		if (currentTurn == player.id) {
 			// Reset changed stats after recharging or dodging the previous turn
@@ -325,7 +335,7 @@ void recharge(Creature &self, Creature &player, Creature &enemy) {
 	self.rechargeRate *= 4;
 	self.hitChanceModifier += 10;
 	self.recharged = true;
-	cout << self.getName() << " recharged" << endl;
+	cout << ">> " << self.getName() << " recharged" << endl;
 	pause(info.dwCursorPosition, player, enemy);
 	// End the turn
 	endTurn(player, enemy, self.id);
@@ -344,7 +354,7 @@ void dodge(Creature &self, Creature &player, Creature &enemy) {
 	self.rechargeRate /= 2;
 	self.hitChanceModifier -= 30;
 	self.dodged = true;
-	cout << self.getName() << " dodged" << endl;
+	cout << ">> " << self.getName() << " dodged" << endl;
 	pause(info.dwCursorPosition, player, enemy);
 	// End the turn
 	endTurn(player, enemy, self.id);
@@ -398,7 +408,7 @@ bool attack(Creature &attacker, Creature &target, Creature &player, Creature &en
 			pause(info.dwCursorPosition, player, enemy);
 		}
 		else {
-			cout << ">> Missed!" << endl;
+			cout << ">> " << attacker.getName() << "'s attack missed!" << endl;
 			pause(info.dwCursorPosition, player, enemy);
 		}
 		// End the turn
