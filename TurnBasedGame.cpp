@@ -166,9 +166,9 @@ void pause(COORD originalPos, Creature &player, Creature &enemy) {
 	// Set text colour to green
 	SetConsoleTextAttribute(handle, GREEN);
 	// Display player stats
-	cout << " " << player.getName() << ": HP: " << player.getHealth() << "/" << player.maxHealth << " E:" << player.getEnergy() << "/" << player.maxEnergy << endl;
+	cout << " " << player.getName() << ": HP:" << player.getHealth() << "/" << player.maxHealth << " E:" << player.getEnergy() << "/" << player.maxEnergy << endl;
 	// Text to display for enemy stats
-	string enemyInfo = enemy.getName() + ": HP: " + to_string(enemy.getHealth()) + "/" + to_string(enemy.maxHealth) + " E:" + to_string(enemy.getEnergy()) + "/" + to_string(enemy.maxEnergy);
+	string enemyInfo = enemy.getName() + ": HP:" + to_string(enemy.getHealth()) + "/" + to_string(enemy.maxHealth) + " E:" + to_string(enemy.getEnergy()) + "/" + to_string(enemy.maxEnergy);
 	// Set cursor position to the right side of the screen minus the length of the enemy stats string on the same row as the player stats
 	SetConsoleCursorPosition(handle, { info.srWindow.Right - (short) enemyInfo.length(), info.srWindow.Bottom - 2 });
 	// Set text to red
@@ -225,9 +225,9 @@ void menu(Creature &player, Creature &enemy, int selected) {
 		// Set the text colour to green
 		SetConsoleTextAttribute(handle, GREEN);
 		// Display the player stats
-		cout << " " << player.getName() << ": HP: " << player.getHealth() << "/" << player.maxHealth << " E:" << player.getEnergy() << "/" << player.maxEnergy << endl;
+		cout << " " << player.getName() << ": HP:" << player.getHealth() << "/" << player.maxHealth << " E:" << player.getEnergy() << "/" << player.maxEnergy << endl;
 		// Create string for enemy stats
-		string enemyInfo = enemy.getName() + ": HP: " + to_string(enemy.getHealth()) + "/" + to_string(enemy.maxHealth) + " E:" + to_string(enemy.getEnergy()) + "/" + to_string(enemy.maxEnergy);
+		string enemyInfo = enemy.getName() + ": HP:" + to_string(enemy.getHealth()) + "/" + to_string(enemy.maxHealth) + " E:" + to_string(enemy.getEnergy()) + "/" + to_string(enemy.maxEnergy);
 		// Set cursor position to the right side of the screen minus the length of the enemy stats string on the same row as the player stats
 		SetConsoleCursorPosition(handle, { info.srWindow.Right - (short)enemyInfo.length(), info.srWindow.Bottom - 2 });
 		// Set the text colour to red
