@@ -8,8 +8,6 @@
 #include <algorithm>
 
 using namespace std;
-random_device random;
-mt19937 numberGen(random());
 
 void clearScreen(HANDLE &handle, short startRow);
 void clearScreen(HANDLE &handle, short startRow, short endRow);
@@ -132,35 +130,69 @@ public:
 
 };
 
-void processChoice(char choice, Creature &player, Creature &enemy, int selected);
+/*
+	Generate a random number within a given range
+	min: minimum value to generate
+	max: maximum value to generate
+	returns the random number
+*/
+int randInt(int min, int max) {
+	random_device random;
+	mt19937 seed(random());
+	uniform_int_distribution<> rand(min, max);
+	return rand(seed);
+}
+
+bool processChoice(char choice, Creature &player, Creature &enemy, int &selected);
 void doTurn(Creature &player, Creature &enemy, short turnID);
 
 enum Colours { BLACK = 0, DARK_BLUE = 1, DARK_GREEN = 2, TURQOUSE = 3, DARK_RED = 4, DARK_PURPLE = 5, GOLD = 6, WHITE = 7, GREY = 8, BLUE = 9, GREEN = 10, CYAN = 11, RED = 12, PURPLE = 13, YELLOW = 14};
 
+/*
+	Wait for user input and display continue option and player and enemy stats then clears the screen after the user presses any button
+	originalPos: the cursor position when this function is called
+	&player: the instance of the player
+	&enemy: the instance of the enemy
+*/
 void pause(COORD originalPos, Creature &player, Creature &enemy) {
+	// Get handle and screen buffer info
 	HANDLE handle = GetStdHandle(STD_OUTPUT_HANDLE);
 	CONSOLE_SCREEN_BUFFER_INFO info;
 	GetConsoleScreenBufferInfo(handle, &info);
+	// Clear bottom section of the screen
 	clearScreen(handle, info.srWindow.Bottom - 2, info.srWindow.Bottom - 1);
+	// Set cursor position to row with player and enemy stats
 	SetConsoleCursorPosition(handle, { 0, info.srWindow.Bottom - 2 });
+	// Set text colour to green
 	SetConsoleTextAttribute(handle, GREEN);
+	// Display player stats
 	cout << " " << player.getName() << ": HP: " << player.getHealth() << "/" << player.maxHealth << " E:" << player.getEnergy() << "/" << player.maxEnergy << endl;
+	// Text to display for enemy stats
 	string enemyInfo = enemy.getName() + ": HP: " + to_string(enemy.getHealth()) + "/" + to_string(enemy.maxHealth) + " E:" + to_string(enemy.getEnergy()) + "/" + to_string(enemy.maxEnergy);
+	// Set cursor position to the right side of the screen minus the length of the enemy stats string on the same row as the player stats
 	SetConsoleCursorPosition(handle, { info.srWindow.Right - (short) enemyInfo.length(), info.srWindow.Bottom - 2 });
+	// Set text to red
 	SetConsoleTextAttribute(handle, RED);
+	// Display enemy stats
 	cout << enemyInfo << endl;
+	// Set cursor position to bottom row
 	SetConsoleCursorPosition(handle, { 0, info.srWindow.Bottom - 1 });
+	// Display continue with white square brackets and yellow text for continue
 	SetConsoleTextAttribute(handle, WHITE);
 	cout << "[";
 	SetConsoleTextAttribute(handle, YELLOW);
 	cout << "Continue";
 	SetConsoleTextAttribute(handle, WHITE);
 	cout << "]" << endl;
+	// Set cursor position back to the original position
 	SetConsoleCursorPosition(handle, originalPos);
+	// Wait for user input
 	_getch();
+	// Clear the screen
 	clearScreen(handle, 0);
 }
 
+// Key codes for arrow keys and enter
 enum KEYS { UP = 72, RIGHT = 77, DOWN = 80, LEFT = 75, ENTER = 13, ARROWS = 244};
 
 
@@ -168,51 +200,79 @@ enum KEYS { UP = 72, RIGHT = 77, DOWN = 80, LEFT = 75, ENTER = 13, ARROWS = 244}
 	Displays the actions the player can perform and take input for the choice
 	&player: instance of the player
 	&enemy: instance of the enemy
-
+	selected: the menu item selected
 */	
 void menu(Creature &player, Creature &enemy, int selected) {
-	HANDLE handle = GetStdHandle(STD_OUTPUT_HANDLE);
-	CONSOLE_SCREEN_BUFFER_INFO info;
-	GetConsoleScreenBufferInfo(handle, &info);
-	string menuItems[5] = { " Attack ", " Special ", " Recharge ", " Dodge ", " Heal " };
-	menuItems[selected].erase((menuItems[selected]).length() - 1, (menuItems[selected]).length());
-	menuItems[selected].erase(0, 1);
+	int choice = 0;
+	do {
+		// Get the handle
+		HANDLE handle = GetStdHandle(STD_OUTPUT_HANDLE);
+		CONSOLE_SCREEN_BUFFER_INFO info;
+		GetConsoleScreenBufferInfo(handle, &info);
+		// Create an arrow of strings for menu options with spaces before and after each word
+		string menuItems[5] = { " Attack ", " Special ", " Recharge ", " Dodge ", " Heal " };
+		// Remove the spaces from the selected item in the array
+		menuItems[selected].erase((menuItems[selected]).length() - 1, (menuItems[selected]).length());
+		menuItems[selected].erase(0, 1);
 
-	COORD cursorPos = info.dwCursorPosition;
+		// Store the current cursor position
+		COORD cursorPos = info.dwCursorPosition;
 
-	clearScreen(handle, info.srWindow.Bottom - 2, info.srWindow.Bottom - 1);
-	SetConsoleCursorPosition(handle, { 0, info.srWindow.Bottom - 2 });
-	SetConsoleTextAttribute(handle, GREEN);
-	cout << " " << player.getName() << ": HP: " << player.getHealth() << "/" << player.maxHealth << " E:" << player.getEnergy() << "/" << player.maxEnergy << endl;
-	string enemyInfo = enemy.getName() + ": HP: " + to_string(enemy.getHealth()) + "/" + to_string(enemy.maxHealth) + " E:" + to_string(enemy.getEnergy()) + "/" + to_string(enemy.maxEnergy);
-	SetConsoleCursorPosition(handle, { info.srWindow.Right - (short)enemyInfo.length(), info.srWindow.Bottom - 2 });
-	SetConsoleTextAttribute(handle, RED);
-	cout << enemyInfo << endl;
-	SetConsoleCursorPosition(handle, { 0, info.srWindow.Bottom - 1 });
-
-	for (int i = 0; i < sizeof(menuItems) / sizeof(menuItems[0]); i++) {
-		if (i == selected) {
-			SetConsoleTextAttribute(handle, WHITE);
-			cout << "[";
-			SetConsoleTextAttribute(handle, YELLOW);
-			cout << menuItems[i];
-			SetConsoleTextAttribute(handle, WHITE);
-			cout << "]";
-		} else {
-			SetConsoleTextAttribute(handle, GREY);
-			cout << menuItems[i];
-			SetConsoleTextAttribute(handle, WHITE);
+		// Clear the bottom section of the screen
+		clearScreen(handle, info.srWindow.Bottom - 2, info.srWindow.Bottom - 1);
+		// Set cursor position to the row for the player and enemy stats
+		SetConsoleCursorPosition(handle, { 0, info.srWindow.Bottom - 2 });
+		// Set the text colour to green
+		SetConsoleTextAttribute(handle, GREEN);
+		// Display the player stats
+		cout << " " << player.getName() << ": HP: " << player.getHealth() << "/" << player.maxHealth << " E:" << player.getEnergy() << "/" << player.maxEnergy << endl;
+		// Create string for enemy stats
+		string enemyInfo = enemy.getName() + ": HP: " + to_string(enemy.getHealth()) + "/" + to_string(enemy.maxHealth) + " E:" + to_string(enemy.getEnergy()) + "/" + to_string(enemy.maxEnergy);
+		// Set cursor position to the right side of the screen minus the length of the enemy stats string on the same row as the player stats
+		SetConsoleCursorPosition(handle, { info.srWindow.Right - (short)enemyInfo.length(), info.srWindow.Bottom - 2 });
+		// Set the text colour to red
+		SetConsoleTextAttribute(handle, RED);
+		// Display the enemy stats
+		cout << enemyInfo << endl;
+		// Set the cursor position to the bottom row
+		SetConsoleCursorPosition(handle, { 0, info.srWindow.Bottom - 1 });
+		// Loop through the array of menu items
+		for (int i = 0; i < sizeof(menuItems) / sizeof(menuItems[0]); i++) {
+			// If the item is selected
+			if (i == selected) {
+				// Display selected item with white square brackets and yellow text
+				SetConsoleTextAttribute(handle, WHITE);
+				cout << "[";
+				SetConsoleTextAttribute(handle, YELLOW);
+				cout << menuItems[i];
+				SetConsoleTextAttribute(handle, WHITE);
+				cout << "]";
+				// Else the item is not selected
+			}
+			else {
+				// Display non selected item as grey
+				SetConsoleTextAttribute(handle, GREY);
+				cout << menuItems[i];
+				// Set text back to white
+				SetConsoleTextAttribute(handle, WHITE);
+			}
 		}
-	}
-	SetConsoleCursorPosition(handle, cursorPos);
-	cout << ">> Select a command" << endl;
-	SetConsoleCursorPosition(handle, cursorPos);
-	cin.clear();
-	int choice = _getch();
-	if (choice == ARROWS) {
+		// Set cursor position back to original position and display text
+		SetConsoleCursorPosition(handle, cursorPos);
+		cout << ">> Select a command" << endl;
+		// Set it back again
+		SetConsoleCursorPosition(handle, cursorPos);
+		// Clear the input
+		cin.clear();
+		// Get the user input
 		choice = _getch();
-	}
-	processChoice(choice, player, enemy, selected);
+		// If input is an arrow key (224)
+		if (choice == ARROWS) {
+			// Get the arrow key input
+			choice = _getch();
+		}
+		// Call process choice to respond to the input
+	} while(processChoice(choice, player, enemy, selected));
 }
 
 /*
@@ -391,14 +451,12 @@ bool attack(Creature &attacker, Creature &target, Creature &player, Creature &en
 		// Remove the energy used by the attack
 		attacker.removeEnergy(attack.cost);
 		// Generate random number between 0 and 100 for a percentage hit chance, this makes each number have an equal chance of generating
-		uniform_int_distribution<> hitChanceRange(0, 100);
 		// Generate the random number in the range using the random number generator
-		int hit = hitChanceRange(numberGen);
+		int hit = randInt(0, 100);
 		// Check whether the attack hit with the hit chance and the target's hit chance modifier allowing for a greater number of numbers within the 0 to 100 range of being a successful hit
 		if (hit >= (100 - attack.hitChance + target.hitChanceModifier)) {
 			// Generate a random number within the damage range
-			uniform_int_distribution<> damageRange(attack.minDamage, attack.maxDamage);
-			int damage = damageRange(numberGen);
+			int damage = randInt(attack.minDamage, attack.maxDamage);
 			// Damage the target
 			target.takeDamage(damage);
 			cout << ">> Hit for " << damage << " damage, " << target.getName() << "'s health is now " << target.getHealth() << "/" << target.maxHealth << endl;
@@ -446,7 +504,7 @@ void heal(Creature &creature, Creature &player, Creature &enemy) {
 	pause(info.dwCursorPosition, player, enemy);
 	creature.healed = true;
 	// Show the menu again so the player can perform another action, only necessary for player as the enemy does not use the menu
-	if (player.isTurn)
+	if (creature.id == player.id)
 		menu(player, enemy, FIRST_MENU_ITEM);
 }
 
@@ -457,50 +515,55 @@ enum commands { ATTACK = 0, SPECIAL = 1, RECHARGE = 2, DODGE = 3, HEAL = 4 };
 	choice: the key pressed by the player
 	&player: the player instance
 	&enemy: the enemy instance
+	returns true if the menu should be shown again
 */
-void processChoice(char choice, Creature &player, Creature &enemy, int selected) {
+bool processChoice(char choice, Creature &player, Creature &enemy, int &selected) {
 	HANDLE handle = GetStdHandle(STD_OUTPUT_HANDLE);
 	CONSOLE_SCREEN_BUFFER_INFO info;
 	GetConsoleScreenBufferInfo(handle, &info);
 	switch (choice) {
 	case UP:
 	case LEFT:
+		// If the selected item on the menu is the first, go to the last
 		if (selected == FIRST_MENU_ITEM) {
 			selected = LAST_MENU_ITEM;
+		// Else decrease selected to move left
 		} else {
 			selected--;
 		}
-		menu(player, enemy, selected);
-		break;
+		// Update menu
+		return true;
 	case DOWN:
 	case RIGHT:
+		// If the selected item on the menu is the last, go to the first
 		if (selected == LAST_MENU_ITEM) {
 			selected = FIRST_MENU_ITEM;
+		// Else increase selected to move right
 		} else {
 			selected++;
 		}
-		menu(player, enemy, selected);
-		break;
+		// Update menu
+		return true;
 	case ENTER:
 		switch (selected) {
 			case ATTACK:
 				// Use the standard attack
 				attack(player, enemy, player, enemy, standard);
-				break;
+				return false;
 			case SPECIAL:
 				// Use the special attack, if the player doesn't have enough energy display the menu to ask for input again
 				if (!attack(player, enemy, player, enemy, special)) {
 					menu(player, enemy, selected);
 				}
-				break;
+				return false;
 			case RECHARGE:
 				// Recharge energy
 				recharge(player, player, enemy);
-				break;
+				return false;
 			case DODGE:
 				// Dodge to reduce hit chance of the opponent
 				dodge(player, player, enemy);
-				break;
+				return false;
 			case HEAL:
 				// Check if the player has already healed so they can only heal once per turn
 				if (!player.healed)
@@ -509,18 +572,17 @@ void processChoice(char choice, Creature &player, Creature &enemy, int selected)
 					cout << ">> Already healed this turn" << endl;
 					pause(info.dwCursorPosition, player, enemy);
 					// Display the menu again 
-					menu(player, enemy, selected);
+					return true;
 				}
-				break;
+				return false;
 			}
 		break;
 	default:
 		// Display the menu again as the input was invalid
-		//pause(info.dwCursorPosition, player, enemy);
-		menu(player, enemy, selected);
-		break;
+		return true;
 	}
 	cout << endl;
+	return true;
 }
 
 /*
@@ -605,22 +667,40 @@ void makeDecision(Creature &player, Creature &enemy) {
 	return;
 }
 
+/*
+	Clear the screen within a specific area of the console with the start and end row
+	&handle: the handle
+	startRow: the row to start clearing from
+	endRow: the row to stop clearing from
+*/
 void clearScreen(HANDLE &handle, short startRow, short endRow) {
+	// Get the screen info
 	CONSOLE_SCREEN_BUFFER_INFO info;
 	GetConsoleScreenBufferInfo(handle, &info);
 	DWORD d = 0;
+	// Fill the console with nothing from start row to end row
 	FillConsoleOutputCharacter(handle, ' ', info.srWindow.Right * endRow, { 0, startRow }, &d);
+	// Reset cursor position
 	SetConsoleCursorPosition(handle, { 0, 0 });
 }
 
+/*
+	Clear the screen from a starting row until the bottom of the window
+	&handle: the handle
+	startRow: the row to start clearing from
+*/
 void clearScreen(HANDLE &handle, short startRow) {
+	// Get the screen info
 	CONSOLE_SCREEN_BUFFER_INFO info;
 	GetConsoleScreenBufferInfo(handle, &info);
+	// Clear console with end row as the bottom of the window
 	clearScreen(handle, startRow, info.srWindow.Bottom);
 }
 
 int main() {
+	// Get the handle
 	HANDLE handle = GetStdHandle(STD_OUTPUT_HANDLE);
+	// Set the window title
 	SetConsoleTitle(TEXT("Turn Based Game"));
 	// Instantiate the player and enemy objects
 	Creature playerCreature(0, CREATURE_MAX_HEALTH, "Player");
@@ -629,17 +709,17 @@ int main() {
 	cout << "Welcome to this turn based game" << endl;
 	CONSOLE_SCREEN_BUFFER_INFO info;
 	GetConsoleScreenBufferInfo(handle, &info);
-
+	// Wait for user input
 	pause(info.dwCursorPosition, playerCreature, enemyCreature);
 	cout << "Use the up and down arrows to navigate the menus and enter to select" << endl;
+	// Wait for user input
 	pause(info.dwCursorPosition, playerCreature, enemyCreature);
-	playerCreature.isTurn = true;
-	// Start the turns
+	// Clear the screen
 	clearScreen(handle, 0);
+	// Start the turns
 	doTurn(playerCreature, enemyCreature, playerCreature.id);
 	// Take input at the end to prevent the game from instantly closing at the end
 	cin.ignore();
 	_getch();
     return 0;
 }
-
