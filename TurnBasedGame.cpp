@@ -248,8 +248,7 @@ void menu(Creature &player, Creature &enemy, int selected) {
 				SetConsoleTextAttribute(handle, WHITE);
 				cout << "]";
 				// Else the item is not selected
-			}
-			else {
+			} else {
 				// Display non selected item as grey
 				SetConsoleTextAttribute(handle, GREY);
 				cout << menuItems[i];
@@ -289,11 +288,13 @@ void endTurn(Creature &player, Creature &enemy, short turnID) {
 	if (player.getHealth() <= 0) {
 		cout << ">> " << player.getName() << " has died" << endl;
 		pause(info.dwCursorPosition, player, enemy);
+		cout << ">> " << enemy.getName() << " wins" << endl;
 		return;
 	// Check if the enemy is dead
 	} else if (enemy.getHealth() <= 0) {
 		cout << ">> " << enemy.getName() << " has died" << endl;
 		pause(info.dwCursorPosition, player, enemy);
+		cout << ">> " << player.getName() << " wins" << endl;
 		return;
 	// If neither are dead, proceed
 	} else {
@@ -411,9 +412,11 @@ void dodge(Creature &self, Creature &player, Creature &enemy) {
 	HANDLE handle = GetStdHandle(STD_OUTPUT_HANDLE);
 	CONSOLE_SCREEN_BUFFER_INFO info;
 	GetConsoleScreenBufferInfo(handle, &info);
+	clearScreen(handle, 0);
 	self.rechargeRate /= 2;
 	self.hitChanceModifier -= 30;
 	self.dodged = true;
+	cout << endl;
 	cout << ">> " << self.getName() << " dodged" << endl;
 	pause(info.dwCursorPosition, player, enemy);
 	// End the turn
@@ -454,7 +457,7 @@ bool attack(Creature &attacker, Creature &target, Creature &player, Creature &en
 		// Generate the random number in the range using the random number generator
 		int hit = randInt(0, 100);
 		// Check whether the attack hit with the hit chance and the target's hit chance modifier allowing for a greater number of numbers within the 0 to 100 range of being a successful hit
-		if (hit >= (100 - attack.hitChance + target.hitChanceModifier)) {
+		if (hit >= (100 - (attack.hitChance + target.hitChanceModifier))) {
 			// Generate a random number within the damage range
 			int damage = randInt(attack.minDamage, attack.maxDamage);
 			// Damage the target
@@ -607,8 +610,13 @@ void makeDecision(Creature &player, Creature &enemy) {
 					recharge(enemy, player, enemy);
 					return;
 				}
+			// Otherwise recharge unless energy is already full, then attack
 			} else {
-				recharge(enemy, player, enemy);
+				if (enemy.energy == enemy.maxEnergy) {
+					attack(enemy, player, player, enemy, standard);
+				} else {
+					recharge(enemy, player, enemy);
+				}
 				return;
 			}
 		// If the enemy has less than 25 health heal and dodge
@@ -617,9 +625,13 @@ void makeDecision(Creature &player, Creature &enemy) {
 				heal(enemy, player, enemy);
 			dodge(enemy, player, enemy);
 			return;
-		// Otherwise recharge
+		// Otherwise recharge unless energy is already full, then attack
 		} else {
-			recharge(enemy, player, enemy);
+			if (enemy.energy == enemy.maxEnergy) {
+				attack(enemy, player, player, enemy, standard);
+			} else {
+				recharge(enemy, player, enemy);
+			}
 			return;
 		}
 	// Check if the player recharged their turn
@@ -666,7 +678,6 @@ void makeDecision(Creature &player, Creature &enemy) {
 	attack(enemy, player, player, enemy, standard);
 	return;
 }
-
 /*
 	Clear the screen within a specific area of the console with the start and end row
 	&handle: the handle
